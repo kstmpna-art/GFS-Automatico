@@ -59,7 +59,7 @@ def main():
     )
 
     contexto = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as servidor:
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=contexto) as servidor:
         servidor.login(usuario, clave)
         servidor.send_message(mensaje)
 
