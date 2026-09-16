@@ -3,7 +3,7 @@ name: Enviar GRIB marítimo
 on:
   schedule:
     # 09:00 UTC = 06:00 ART | 21:00 UTC = 18:00 ART
-    - cron: "15 9,21 * * *"
+    - cron: "15 10,13,21 * * *"
   workflow_dispatch:
 
 concurrency:
