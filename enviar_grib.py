@@ -8,7 +8,7 @@ import ssl
 from email.message import EmailMessage
 from pathlib import Path
 
-LIMITACION_ADJUNTO = 18 * 1024 * 1024  # 18 MB
+LIMITACION_ADJUNTO = 20 * 1024 * 1024  # 20 MB
 
 
 def obtener_secreto(nombre):
