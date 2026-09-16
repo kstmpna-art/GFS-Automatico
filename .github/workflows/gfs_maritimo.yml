@@ -32,15 +32,40 @@ jobs:
             --oeste -66 \
             --este -59 \
             --horas 120 \
-            --paso 6 \
-            --salida gfs_maritimo.grb2
+            --paso 6
+
+      - name: Detectar archivo GRIB generado
+        shell: bash
+        run: |
+          GRIB_FILE=$(find . -maxdepth 1 -type f \
+            \( -name "gfs*.grb2" -o -name "gfs*.grb" \) \
+            ! -name "*.parcial" \
+            -printf "%T@ %p\n" |
+            sort -nr |
+            head -n 1 |
+            cut -d" " -f2-)
+
+          if [ -z "$GRIB_FILE" ]; then
+            echo "ERROR: no se encontró ningún archivo GRIB generado."
+            exit 1
+          fi
+
+          GRIB_FILE="${GRIB_FILE#./}"
+
+          echo "Archivo encontrado: $GRIB_FILE"
+          echo "GRIB_FILE=$GRIB_FILE" >> "$GITHUB_ENV"
+
+      - name: Mostrar información del archivo
+        run: |
+          ls -lh "$GRIB_FILE"
+          echo "Se enviará: $GRIB_FILE"
 
       - name: Conservar GRIB como artefacto
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: gfs-maritimo-${{ github.run_number }}
-          path: gfs_maritimo.grb2
+          path: ${{ env.GRIB_FILE }}
           retention-days: 3
           if-no-files-found: error
 
@@ -49,4 +74,5 @@ jobs:
           MAIL_USER: ${{ secrets.MAIL_USER }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           MAIL_DESTINO: ${{ secrets.MAIL_DESTINO }}
-        run: python enviar_grib.py gfs_maritimo.grb2
+        run: |
+          python enviar_grib.py "$GRIB_FILE"
