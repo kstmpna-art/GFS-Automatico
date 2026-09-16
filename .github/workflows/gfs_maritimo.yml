@@ -13,7 +13,7 @@ concurrency:
 jobs:
   generar-y-enviar:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Descargar repositorio
@@ -24,15 +24,15 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Generar GRIB2 marítimo
+      - name: Generar GRIB2 marítimo grande
         run: |
           python descargar_gfs_xygrib_olas.py \
-            --norte -40 \
-            --sur -46 \
-            --oeste -66 \
-            --este -59 \
-            --horas 120 \
-            --paso 6
+            --norte -35 \
+            --sur -60 \
+            --oeste -85 \
+            --este -55 \
+            --horas 168 \
+            --paso 3
 
       - name: Detectar archivo GRIB generado
         shell: bash
