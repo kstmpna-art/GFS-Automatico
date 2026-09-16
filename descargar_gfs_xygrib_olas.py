@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Descarga un GRIB2 marítimo reducido de GFS Atmos + GFS-Wave."""
+"""Reproduce el contenido del GRIB2 GFS P25 + WW3 de referencia."""
 
 import argparse
 import time
@@ -15,17 +15,6 @@ URL_OLAS = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl"
 PAUSA_NOMADS = 10
 
 
-def pedir_float(texto, minimo, maximo):
-    while True:
-        try:
-            valor = float(input(texto))
-            if minimo <= valor <= maximo:
-                return valor
-        except ValueError:
-            pass
-        print(f"Ingresá un número entre {minimo} y {maximo}.")
-
-
 def parametros_region(limites):
     norte, sur, oeste, este = limites
     return {
@@ -37,18 +26,41 @@ def parametros_region(limites):
     }
 
 
-def construir_url_atmos(fecha, ciclo, plazo, limites):
-    parametros = {
+def construir_urls_atmos(fecha, ciclo, plazo, limites):
+    """Dos consultas evitan campos extra por cruces variable/nivel."""
+    base = {
         "file": f"gfs.t{ciclo:02d}z.pgrb2.0p25.f{plazo:03d}",
-        "lev_10_m_above_ground": "on",
-        "lev_mean_sea_level": "on",
-        "var_UGRD": "on",
-        "var_VGRD": "on",
-        "var_PRMSL": "on",
         "dir": f"/gfs.{fecha:%Y%m%d}/{ciclo:02d}/atmos",
         **parametros_region(limites),
     }
-    return URL_ATMOS + "?" + urlencode(parametros)
+
+    # PRMSL; HGT/T/RH/U/V a 700 hPa; T2m; U/V a 10 m.
+    grupo_1 = {
+        "lev_10_m_above_ground": "on",
+        "lev_2_m_above_ground": "on",
+        "lev_mean_sea_level": "on",
+        "lev_700_mb": "on",
+        "var_UGRD": "on",
+        "var_VGRD": "on",
+        "var_PRMSL": "on",
+        "var_HGT": "on",
+        "var_TMP": "on",
+    }
+
+    # CAPE, CIN y ráfagas en superficie; humedad relativa a 700 hPa.
+    grupo_2 = {
+        "lev_surface": "on",
+        "lev_700_mb": "on",
+        "var_CAPE": "on",
+        "var_CIN": "on",
+        "var_GUST": "on",
+        "var_RH": "on",
+    }
+
+    return (
+        URL_ATMOS + "?" + urlencode({**base, **grupo_1}),
+        URL_ATMOS + "?" + urlencode({**base, **grupo_2}),
+    )
 
 
 def construir_url_olas(fecha, ciclo, plazo, limites):
@@ -57,11 +69,16 @@ def construir_url_olas(fecha, ciclo, plazo, limites):
             f"gfswave.t{ciclo:02d}z.global.0p25."
             f"f{plazo:03d}.grib2"
         ),
-        # Oleaje total
-        "var_HTSGW": "on",  # altura significativa combinada
-        "var_DIRPW": "on",  # dirección de ola primaria
-        "var_PERPW": "on",  # período de ola primaria
+        # Oleaje combinado, mar de viento y swell primario.
+        "var_HTSGW": "on",
+        "var_WVHGT": "on",
+        "var_WVDIR": "on",
+        "var_WVPER": "on",
+        "var_SWELL": "on",
+        "var_SWDIR": "on",
+        "var_SWPER": "on",
         "lev_surface": "on",
+        "lev_1_in_sequence": "on",
         "dir": f"/gfs.{fecha:%Y%m%d}/{ciclo:02d}/wave/gridded",
         **parametros_region(limites),
     }
@@ -117,7 +134,10 @@ def encontrar_corrida_comun(limites):
             etiqueta = f"{fecha:%Y-%m-%d} {ciclo:02d} UTC"
             print(f"Probando corrida común {etiqueta}...")
             try:
-                descargar(construir_url_atmos(fecha, ciclo, 0, limites), 1)
+                url_atmos_1, _ = construir_urls_atmos(
+                    fecha, ciclo, 0, limites
+                )
+                descargar(url_atmos_1, 1)
                 time.sleep(PAUSA_NOMADS)
                 descargar(construir_url_olas(fecha, ciclo, 0, limites), 1)
                 return fecha, ciclo
@@ -137,16 +157,16 @@ def generar_plazos(horizonte, paso):
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Crea un GRIB2 marítimo regional con viento, presión y "
-            "oleaje total de GFS."
+            "Crea un GRIB2 con la misma selección de campos, dominio y "
+            "plazos que el archivo de referencia GFS P25 + WW3."
         )
     )
-    parser.add_argument("--norte", type=float)
-    parser.add_argument("--sur", type=float)
-    parser.add_argument("--oeste", type=float)
-    parser.add_argument("--este", type=float)
-    parser.add_argument("--horas", type=int, default=120)
-    parser.add_argument("--paso", type=int, default=6)
+    parser.add_argument("--norte", type=float, default=-18.0)
+    parser.add_argument("--sur", type=float, default=-65.0)
+    parser.add_argument("--oeste", type=float, default=-85.0)
+    parser.add_argument("--este", type=float, default=-25.0)
+    parser.add_argument("--horas", type=int, default=168)
+    parser.add_argument("--paso", type=int, default=3)
     parser.add_argument("--salida", type=Path)
 
     # Colab/Jupyter añade "-f kernel.json". Ignoramos solo argumentos ajenos.
@@ -154,13 +174,11 @@ def main():
     if desconocidos and not any(x == "-f" or "kernel-" in x for x in desconocidos):
         print(f"Aviso: argumentos ignorados: {desconocidos}")
 
-    print("\nGFS ATMOS + GFS-WAVE PARA XYGRIB")
-    print("=" * 38)
+    print("\nGFS P25 + GFS-WAVE: PRODUCTO DE REFERENCIA")
+    print("=" * 46)
 
-    norte = args.norte if args.norte is not None else pedir_float("Latitud norte: ", -90, 90)
-    sur = args.sur if args.sur is not None else pedir_float("Latitud sur: ", -90, 90)
-    oeste = args.oeste if args.oeste is not None else pedir_float("Longitud oeste: ", -180, 360)
-    este = args.este if args.este is not None else pedir_float("Longitud este: ", -180, 360)
+    norte, sur = args.norte, args.sur
+    oeste, este = args.oeste, args.este
 
     if norte <= sur:
         raise SystemExit("La latitud norte debe ser mayor que la latitud sur.")
@@ -176,7 +194,7 @@ def main():
     limites = (norte, sur, oeste, este)
     fecha, ciclo = encontrar_corrida_comun(limites)
     salida = args.salida or Path(
-        f"gfs_atmos_olas_{fecha:%Y%m%d}_{ciclo:02d}z_"
+        f"gfs_p25_ww3_{fecha:%Y%m%d}_{ciclo:02d}z_"
         f"f000-f{args.horas:03d}.grb2"
     )
     temporal = salida.with_suffix(salida.suffix + ".parcial")
@@ -192,12 +210,19 @@ def main():
             for numero, plazo in enumerate(plazos, 1):
                 etiqueta = f"[{numero:02d}/{len(plazos):02d}] f{plazo:03d}"
 
-                print(f"{etiqueta}: atmósfera...")
-                atmosferico = descargar(
-                    construir_url_atmos(fecha, ciclo, plazo, limites)
+                print(f"{etiqueta}: atmósfera (grupo 1/2)...")
+                url_atmos_1, url_atmos_2 = construir_urls_atmos(
+                    fecha, ciclo, plazo, limites
                 )
-                archivo.write(atmosferico)
-                total += len(atmosferico)
+                atmosferico_1 = descargar(url_atmos_1)
+                archivo.write(atmosferico_1)
+                total += len(atmosferico_1)
+                time.sleep(PAUSA_NOMADS)
+
+                print(f"{etiqueta}: atmósfera (grupo 2/2)...")
+                atmosferico_2 = descargar(url_atmos_2)
+                archivo.write(atmosferico_2)
+                total += len(atmosferico_2)
                 time.sleep(PAUSA_NOMADS)
 
                 print(f"{etiqueta}: olas...")
@@ -208,7 +233,7 @@ def main():
                 total += len(olas)
 
                 print(
-                    f"    Atmos {len(atmosferico)/1024:.1f} KiB | "
+                    f"    Atmos {(len(atmosferico_1)+len(atmosferico_2))/1024:.1f} KiB | "
                     f"Olas {len(olas)/1024:.1f} KiB"
                 )
                 if numero < len(plazos):
