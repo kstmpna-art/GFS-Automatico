@@ -64,7 +64,8 @@
   async function obtenerUltimoEstado(token) {
     const container = document.getElementById('lastRun');
     try {
-      const res = await fetch('https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/runs?per_page=1', {
+      // Consultamos únicamente los ejecuciones del workflow 'gfs_maritimo.yml'
+      const res = await fetch('https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/workflows/gfs_maritimo.yml/runs?per_page=1', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -91,7 +92,7 @@
           • <strong>Fecha/Hora:</strong> ${fecha}
         `;
       } else {
-        container.innerText = "No hay ejecuciones registradas recientemente.";
+        container.innerText = "No hay ejecuciones de envío registradas recientemente.";
       }
     } catch (e) {
       container.innerText = "⚠️ No se pudo obtener el estado. Verificá el Token.";
