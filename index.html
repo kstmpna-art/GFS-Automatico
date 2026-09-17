@@ -12,6 +12,8 @@
     button:hover { background: #0056b3; }
     input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
     #status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+    .btn-link { background: none; color: #6c757d; border: none; padding: 5px; font-size: 12px; text-decoration: underline; cursor: pointer; margin-top: 15px; width: auto; font-weight: normal; }
+    .btn-link:hover { background: none; color: #343a40; }
   </style>
 </head>
 <body>
@@ -23,27 +25,33 @@
     🔄 Consultando último envío...
   </div>
 
-  <p style="font-size: 13px; color: #555;">Si el automático no salió, forzá el envío desde acá:</p>
+  <p id="instrucciones" style="font-size: 13px; color: #555;">Si el automático no salió, forzá el envío desde acá:</p>
   
-  <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
+  <div id="tokenContainer">
+    <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
+  </div>
+
   <button onclick="enviarReporte()">🚀 Enviar GRIB2 Manualmente</button>
   
   <div id="status"></div>
+
+  <button id="changeTokenBtn" class="btn-link" onclick="cambiarToken()" style="display: none;">🔑 Cambiar Token configurado</button>
 </div>
 
 <script>
-  // Cargar token guardado y consultar estado al abrir
   document.addEventListener("DOMContentLoaded", () => {
     const savedToken = localStorage.getItem('gh_token') || '';
-    document.getElementById('tokenInput').value = savedToken;
+    
     if (savedToken) {
+      document.getElementById('tokenInput').value = savedToken;
+      document.getElementById('tokenContainer').style.display = 'none'; // Oculta la casilla del token
+      document.getElementById('changeTokenBtn').style.display = 'inline-block'; // Muestra la opción de cambiarlo
       obtenerUltimoEstado(savedToken);
     } else {
       document.getElementById('lastRun').innerText = "🔑 Ingresá tu Token para ver el estado del último envío.";
     }
   });
 
-  // Consultar la API de GitHub para ver cómo salió la última corrida
   async function obtenerUltimoEstado(token) {
     const container = document.getElementById('lastRun');
     try {
@@ -78,10 +86,12 @@
       }
     } catch (e) {
       container.innerText = "⚠️ No se pudo obtener el estado. Verificá el Token.";
+      // Si falla por token inválido, vuelve a mostrar la casilla de entrada
+      document.getElementById('tokenContainer').style.display = 'block';
+      document.getElementById('changeTokenBtn').style.display = 'none';
     }
   }
 
-  // Disparar la ejecución manual
   async function enviarReporte() {
     const token = document.getElementById('tokenInput').value.trim();
     const statusDiv = document.getElementById('status');
@@ -93,6 +103,11 @@
     }
 
     localStorage.setItem('gh_token', token);
+    
+    // Ocultar casilla una vez enviado si antes estaba visible
+    document.getElementById('tokenContainer').style.display = 'none';
+    document.getElementById('changeTokenBtn').style.display = 'inline-block';
+
     statusDiv.style.color = 'blue';
     statusDiv.innerText = 'Enviando orden a GitHub Actions...';
 
@@ -110,16 +125,23 @@
 
       if (response.status === 204) {
         statusDiv.style.color = 'green';
-        statusDiv.innerText = '¡Orden enviada con éxito! En 15 segundos se actualizará el estado.';
+        statusDiv.innerText = '¡Orden enviada con éxito! En unos segundos se actualizará el estado.';
         setTimeout(() => obtenerUltimoEstado(token), 10000);
       } else {
         statusDiv.style.color = 'red';
         statusDiv.innerText = 'Error al enviar (' + response.status + '). Revisa el Token.';
+        document.getElementById('tokenContainer').style.display = 'block';
       }
     } catch (err) {
       statusDiv.style.color = 'red';
       statusDiv.innerText = 'Error de conexión: ' + err.message;
     }
+  }
+
+  function cambiarToken() {
+    document.getElementById('tokenContainer').style.display = 'block';
+    document.getElementById('changeTokenBtn').style.display = 'none';
+    document.getElementById('tokenInput').focus();
   }
 </script>
 
