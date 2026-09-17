@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control GFS Marítimo</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; background: #f4f7f6; }
+    .card { background: white; max-width: 400px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    button { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+    button:hover { background: #0056b3; }
+    input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    #status { margin-top: 15px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>🌊 Panel GFS Marítimo</h2>
+  <p>Presioná el botón para forzar la generación y envío del reporte por mail.</p>
+  
+  <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
+  <button onclick="enviarReporte()">🚀 Enviar GRIB2 Ahora</button>
+  
+  <div id="status"></div>
+</div>
+
+<script>
+  document.getElementById('tokenInput').value = localStorage.getItem('gh_token') || '';
+
+  async function enviarReporte() {
+    const token = document.getElementById('tokenInput').value.trim();
+    const statusDiv = document.getElementById('status');
+
+    if (!token) {
+      statusDiv.style.color = 'red';
+      statusDiv.innerText = 'Por favor, ingresá tu GitHub Token.';
+      return;
+    }
+
+    localStorage.setItem('gh_token', token);
+
+    statusDiv.style.color = 'blue';
+    statusDiv.innerText = 'Enviando orden a GitHub...';
+
+    const url = 'https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/workflows/gfs_maritimo.yml/dispatches';
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({ ref: 'main' })
+      });
+
+      if (response.status === 204) {
+        statusDiv.style.color = 'green';
+        statusDiv.innerText = '¡Orden enviada con éxito! Revisá Actions en 1 minuto.';
+      } else {
+        statusDiv.style.color = 'red';
+        statusDiv.innerText = 'Error al enviar (' + response.status + '). Revisá el Token.';
+      }
+    } catch (err) {
+      statusDiv.style.color = 'red';
+      statusDiv.innerText = 'Error de conexión: ' + err.message;
+    }
+  }
+</script>
+
+</body>
+</html>
