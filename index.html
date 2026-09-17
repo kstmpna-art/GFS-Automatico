@@ -8,10 +8,16 @@
     body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; background: #f4f7f6; }
     .card { background: white; max-width: 420px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     .status-box { padding: 12px; margin-bottom: 20px; border-radius: 8px; background: #e9ecef; font-size: 14px; text-align: left; border-left: 4px solid #007bff; }
-    button { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-    button:hover { background: #0056b3; }
+    
+    .btn-main { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+    .btn-main:hover { background: #0056b3; }
+    
+    .btn-secondary { background: #6c757d; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+    .btn-secondary:hover { background: #5a6268; }
+
     input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
     #status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+    
     .btn-link { background: none; color: #6c757d; border: none; padding: 5px; font-size: 12px; text-decoration: underline; cursor: pointer; margin-top: 15px; width: auto; font-weight: normal; }
     .btn-link:hover { background: none; color: #343a40; }
   </style>
@@ -25,13 +31,15 @@
     🔄 Consultando último envío...
   </div>
 
-  <p id="instrucciones" style="font-size: 13px; color: #555;">Si el automático no salió, forzá el envío desde acá:</p>
+  <button class="btn-secondary" onclick="consultarEstadoManual()">🔄 Actualizar Estado</button>
   
+  <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
   <div id="tokenContainer">
     <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
   </div>
 
-  <button onclick="enviarReporte()">🚀 Enviar GRIB2 Manualmente</button>
+  <button class="btn-main" onclick="enviarReporte()">🚀 Enviar GRIB2 Manualmente</button>
   
   <div id="status"></div>
 
@@ -44,14 +52,15 @@
     
     if (savedToken) {
       document.getElementById('tokenInput').value = savedToken;
-      document.getElementById('tokenContainer').style.display = 'none'; // Oculta la casilla del token
-      document.getElementById('changeTokenBtn').style.display = 'inline-block'; // Muestra la opción de cambiarlo
+      document.getElementById('tokenContainer').style.display = 'none';
+      document.getElementById('changeTokenBtn').style.display = 'inline-block';
       obtenerUltimoEstado(savedToken);
     } else {
       document.getElementById('lastRun').innerText = "🔑 Ingresá tu Token para ver el estado del último envío.";
     }
   });
 
+  // Función genérica de consulta a la API de GitHub
   async function obtenerUltimoEstado(token) {
     const container = document.getElementById('lastRun');
     try {
@@ -86,12 +95,23 @@
       }
     } catch (e) {
       container.innerText = "⚠️ No se pudo obtener el estado. Verificá el Token.";
-      // Si falla por token inválido, vuelve a mostrar la casilla de entrada
       document.getElementById('tokenContainer').style.display = 'block';
       document.getElementById('changeTokenBtn').style.display = 'none';
     }
   }
 
+  // Acción del botón "Actualizar Estado"
+  function consultarEstadoManual() {
+    const token = document.getElementById('tokenInput').value.trim() || localStorage.getItem('gh_token');
+    if (!token) {
+      alert("Por favor, ingresá un GitHub Token.");
+      return;
+    }
+    document.getElementById('lastRun').innerText = "🔄 Consultando estado actual...";
+    obtenerUltimoEstado(token);
+  }
+
+  // Acción del botón "Enviar GRIB2 Manualmente"
   async function enviarReporte() {
     const token = document.getElementById('tokenInput').value.trim();
     const statusDiv = document.getElementById('status');
@@ -104,7 +124,6 @@
 
     localStorage.setItem('gh_token', token);
     
-    // Ocultar casilla una vez enviado si antes estaba visible
     document.getElementById('tokenContainer').style.display = 'none';
     document.getElementById('changeTokenBtn').style.display = 'inline-block';
 
@@ -126,7 +145,7 @@
       if (response.status === 204) {
         statusDiv.style.color = 'green';
         statusDiv.innerText = '¡Orden enviada con éxito! En unos segundos se actualizará el estado.';
-        setTimeout(() => obtenerUltimoEstado(token), 10000);
+        setTimeout(() => obtenerUltimoEstado(token), 8000);
       } else {
         statusDiv.style.color = 'red';
         statusDiv.innerText = 'Error al enviar (' + response.status + '). Revisa el Token.';
