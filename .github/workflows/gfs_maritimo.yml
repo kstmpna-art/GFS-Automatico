@@ -76,3 +76,22 @@ jobs:
           MAIL_DESTINO: ${{ secrets.MAIL_DESTINO }}
         run: |
           python enviar_grib.py "$GRIB_FILE"
+
+          # Este paso solo se ejecuta si la descarga o el envío previo falla
+      - name: Enviar alerta por Correo Electrónico si falla
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "⚠️ ALERTA: Fallo en el envío automático de GFS Marítimo"
+          to: ${{ secrets.MAIL_DESTINATARIOS }}
+          from: "Alerta GFS Marítimo <${{ secrets.MAIL_USERNAME }}>"
+          html_body: |
+            <h2>⚠️ El envío automático del archivo GRIB2 ha fallado</h2>
+            <p>Se ha detectado un error al procesar el reporte meteorológico programado.</p>
+            <p>Por favor, ingresa al panel de control web para forzar el envío manualmente:</p>
+            <p><a href="https://kstmpna-art.github.io/GFS-Automatico/" style="background:#007bff; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; font-weight:bold;">Ir al Panel de Control</a></p>
