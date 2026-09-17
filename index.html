@@ -6,28 +6,82 @@
   <title>Control GFS Marítimo</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; background: #f4f7f6; }
-    .card { background: white; max-width: 400px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    button { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+    .card { background: white; max-width: 420px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .status-box { padding: 12px; margin-bottom: 20px; border-radius: 8px; background: #e9ecef; font-size: 14px; text-align: left; border-left: 4px solid #007bff; }
+    button { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
     button:hover { background: #0056b3; }
-    input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-    #status { margin-top: 15px; font-weight: bold; }
+    input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    #status { margin-top: 15px; font-weight: bold; font-size: 14px; }
   </style>
 </head>
 <body>
 
 <div class="card">
   <h2>🌊 Panel GFS Marítimo</h2>
-  <p>Presioná el botón para forzar la generación y envío del reporte por mail.</p>
+  
+  <div id="lastRun" class="status-box">
+    🔄 Consultando último envío...
+  </div>
+
+  <p style="font-size: 13px; color: #555;">Si el automático no salió, forzá el envío desde acá:</p>
   
   <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
-  <button onclick="enviarReporte()">🚀 Enviar GRIB2 Ahora</button>
+  <button onclick="enviarReporte()">🚀 Enviar GRIB2 Manualmente</button>
   
   <div id="status"></div>
 </div>
 
 <script>
-  document.getElementById('tokenInput').value = localStorage.getItem('gh_token') || '';
+  // Cargar token guardado y consultar estado al abrir
+  document.addEventListener("DOMContentLoaded", () => {
+    const savedToken = localStorage.getItem('gh_token') || '';
+    document.getElementById('tokenInput').value = savedToken;
+    if (savedToken) {
+      obtenerUltimoEstado(savedToken);
+    } else {
+      document.getElementById('lastRun').innerText = "🔑 Ingresá tu Token para ver el estado del último envío.";
+    }
+  });
 
+  // Consultar la API de GitHub para ver cómo salió la última corrida
+  async function obtenerUltimoEstado(token) {
+    const container = document.getElementById('lastRun');
+    try {
+      const res = await fetch('https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/runs?per_page=1', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!res.ok) throw new Error('Token inválido o sin permisos');
+      
+      const data = await res.json();
+      const lastRun = data.workflow_runs[0];
+
+      if (lastRun) {
+        const fecha = new Date(lastRun.created_at).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        
+        let estadoBadge = '❓ Desconocido';
+        if (lastRun.status === 'in_progress') estadoBadge = '⏳ En curso...';
+        else if (lastRun.status === 'queued') estadoBadge = '🕒 En cola de espera';
+        else if (lastRun.conclusion === 'success') estadoBadge = '✅ Enviado con éxito';
+        else if (lastRun.conclusion === 'failure') estadoBadge = '❌ Falló el envío';
+
+        const origen = lastRun.event === 'schedule' ? 'Automático (Cron)' : 'Manual (Botón Web)';
+        
+        container.innerHTML = `
+          <strong>Último envío registrado:</strong><br>
+          • <strong>Origen:</strong> ${origen}<br>
+          • <strong>Estado:</strong> ${estadoBadge}<br>
+          • <strong>Fecha/Hora:</strong> ${fecha}
+        `;
+      } else {
+        container.innerText = "No hay ejecuciones registradas recientemente.";
+      }
+    } catch (e) {
+      container.innerText = "⚠️ No se pudo obtener el estado. Verificá el Token.";
+    }
+  }
+
+  // Disparar la ejecución manual
   async function enviarReporte() {
     const token = document.getElementById('tokenInput').value.trim();
     const statusDiv = document.getElementById('status');
@@ -39,9 +93,8 @@
     }
 
     localStorage.setItem('gh_token', token);
-
     statusDiv.style.color = 'blue';
-    statusDiv.innerText = 'Enviando orden a GitHub...';
+    statusDiv.innerText = 'Enviando orden a GitHub Actions...';
 
     const url = 'https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/workflows/gfs_maritimo.yml/dispatches';
 
@@ -57,10 +110,11 @@
 
       if (response.status === 204) {
         statusDiv.style.color = 'green';
-        statusDiv.innerText = '¡Orden enviada con éxito! Revisá Actions en 1 minuto.';
+        statusDiv.innerText = '¡Orden enviada con éxito! En 15 segundos se actualizará el estado.';
+        setTimeout(() => obtenerUltimoEstado(token), 10000);
       } else {
         statusDiv.style.color = 'red';
-        statusDiv.innerText = 'Error al enviar (' + response.status + '). Revisá el Token.';
+        statusDiv.innerText = 'Error al enviar (' + response.status + '). Revisa el Token.';
       }
     } catch (err) {
       statusDiv.style.color = 'red';
