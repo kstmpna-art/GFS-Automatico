@@ -3,7 +3,7 @@ name: Enviar GRIB marítimo
 on:
   schedule:
     # 08:45 UTC = 05:45 ART | 20:45 UTC = 17:45 ART
-    - cron: "45 8,20 * * *"
+    - cron: "45 6,18 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -77,7 +77,6 @@ jobs:
         run: |
           python enviar_grib.py "$GRIB_FILE"
 
-          # Este paso solo se ejecuta si la descarga o el envío previo falla
       - name: Enviar alerta por Correo Electrónico si falla
         if: failure()
         uses: dawidd6/action-send-mail@v3
@@ -95,3 +94,15 @@ jobs:
             <p>Se ha detectado un error al procesar el reporte meteorológico programado.</p>
             <p>Por favor, ingresa al panel de control web para forzar el envío manualmente:</p>
             <p><a href="https://kstmpna-art.github.io/GFS-Automatico/" style="background:#007bff; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; font-weight:bold;">Ir al Panel de Control</a></p>
+
+      - name: Enviar alerta por Telegram si falla
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MSG="⚠️ *ALERTA GFS MARÍTIMO*%0AEl envío automático del GRIB2 ha fallado.%0A%0AIngresá al panel para enviarlo manualmente:%0Ahttps://kstmpna-art.github.io/GFS-Automatico/"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown"
