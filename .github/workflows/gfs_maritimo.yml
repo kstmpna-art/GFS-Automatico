@@ -16,6 +16,9 @@ jobs:
     timeout-minutes: 90
 
     steps:
+      - name: Limpiar archivos GRIB previos
+        run: |
+          rm -f gfs*.grb2 gfs*.grb
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
