@@ -21,7 +21,10 @@ def obtener_secreto(nombre):
 def main():
     parser = argparse.ArgumentParser(description="Enviar archivo GRIB por email.")
     parser.add_argument("archivo", type=str, help="Ruta al archivo GRIB2")
+    parser.add_argument("--modo", type=str, choices=["real", "prueba"], default="real",
+                        help="Tipo de envío: real o prueba")
     args = parser.parse_args()
+    es_prueba = args.modo == "prueba"
 
     ruta_archivo = Path(args.archivo)
 
@@ -35,12 +38,21 @@ def main():
     destinatarios = [d.strip() for d in mail_destino_raw.split(",") if d.strip()]
 
     msg = EmailMessage()
-    msg["Subject"] = "Pronóstico GFS Marítimo - Archivo GRIB2"
+    if es_prueba:
+        msg["Subject"] = "[PRUEBA] Pronóstico GFS Marítimo - Archivo GRIB2"
+    else:
+        msg["Subject"] = "Pronóstico GFS Marítimo - Archivo GRIB2"
     msg["From"] = mail_user
     msg["To"] = ", ".join(destinatarios)
-    msg.set_content(
-        "Hola,\n\nSe adjunta el archivo GRIB2 más reciente con la información meteorológica procesada.\n\nSaludos."
-    )
+    if es_prueba:
+        msg.set_content(
+            "Hola,\n\nEste es un envío de prueba.\n\n"
+            "Se adjunta el archivo GRIB2 con la información meteorológica procesada.\n\nSaludos."
+        )
+    else:
+        msg.set_content(
+            "Hola,\n\nSe adjunta el archivo GRIB2 más reciente con la información meteorológica procesada.\n\nSaludos."
+        )
 
     with open(ruta_archivo, "rb") as f:
         contenido = f.read()
