@@ -1,10 +1,20 @@
 name: Enviar GRIB marítimo
 
 on:
-  # schedule:
-  #   # 06:45 UTC = 03:45 ART | 18:45 UTC = 15:45 ART
-  #   - cron: "45 6,18 * * *"
+  schedule:
+    # 06:45 UTC = 03:45 ART | 18:45 UTC = 15:45 ART
+    - cron: "45 6,18 * * *"
   workflow_dispatch:
+    inputs:
+      destino:
+        description: "A quién enviar (fijos siempre incluidos)"
+        type: choice
+        required: false
+        default: fijos
+        options:
+          - fijos
+          - gcfi
+          - tango
 
 concurrency:
   group: gfs-maritimo-programado
@@ -76,8 +86,24 @@ jobs:
         env:
           MAIL_USER: ${{ secrets.MAIL_USER }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-          MAIL_DESTINO: ${{ secrets.MAIL_DESTINO }}
+          MAIL_FIJOS: ${{ secrets.MAIL_DESTINO }}
+          MAIL_GCFI: ${{ secrets.MAIL_GCFI }}
+          MAIL_TANGO: ${{ secrets.MAIL_TANGO }}
+          DESTINO: ${{ inputs.destino }}
         run: |
+          DESTINOS="$MAIL_FIJOS"
+          # En cron DESTINO viene vacío -> solo fijos
+          if [ "$DESTINO" = "gcfi" ]; then
+            if [ -z "$MAIL_GCFI" ]; then echo "ERROR: falta el secret MAIL_GCFI"; exit 1; fi
+            DESTINOS="$DESTINOS,$MAIL_GCFI"
+          fi
+          if [ "$DESTINO" = "tango" ]; then
+            if [ -z "$MAIL_TANGO" ]; then echo "ERROR: falta el secret MAIL_TANGO"; exit 1; fi
+            DESTINOS="$DESTINOS,$MAIL_TANGO"
+          fi
+          echo "Destino elegido: ${DESTINO:-fijos (cron)}"
+          export MAIL_DESTINO="$DESTINOS"
+          export MAIL_USER MAIL_PASSWORD
           python enviar_grib.py "$GRIB_FILE"
 
       - name: Enviar alerta por Correo Electrónico si falla
