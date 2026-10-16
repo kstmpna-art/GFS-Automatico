@@ -15,6 +15,14 @@ on:
           - fijos
           - gcfi
           - tango
+      modo:
+        description: "Tipo de envío"
+        type: choice
+        required: false
+        default: real
+        options:
+          - real
+          - prueba
 
 concurrency:
   group: gfs-maritimo-programado
@@ -90,6 +98,7 @@ jobs:
           MAIL_GCFI: ${{ secrets.MAIL_GCFI }}
           MAIL_TANGO: ${{ secrets.MAIL_TANGO }}
           DESTINO: ${{ inputs.destino }}
+          MODO: ${{ inputs.modo }}
         run: |
           DESTINOS="$MAIL_FIJOS"
           # En cron DESTINO viene vacío -> solo fijos
@@ -101,10 +110,13 @@ jobs:
             if [ -z "$MAIL_TANGO" ]; then echo "ERROR: falta el secret MAIL_TANGO"; exit 1; fi
             DESTINOS="$DESTINOS,$MAIL_TANGO"
           fi
+          # En cron MODO viene vacío -> real
+          if [ -z "$MODO" ]; then MODO="real"; fi
           echo "Destino elegido: ${DESTINO:-fijos (cron)}"
+          echo "Modo: $MODO"
           export MAIL_DESTINO="$DESTINOS"
           export MAIL_USER MAIL_PASSWORD
-          python enviar_grib.py "$GRIB_FILE"
+          python enviar_grib.py "$GRIB_FILE" --modo "$MODO"
 
       - name: Enviar alerta por Correo Electrónico si falla
         if: failure()
