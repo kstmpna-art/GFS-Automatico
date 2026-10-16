@@ -11,6 +11,8 @@
     
     .btn-main { background: #007bff; color: white; border: none; padding: 15px 25px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
     .btn-main:hover { background: #0056b3; }
+    .btn-tango { background: #17a2b8; }
+    .btn-tango:hover { background: #117a8b; }
     
     .btn-secondary { background: #6c757d; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
     .btn-secondary:hover { background: #5a6268; }
@@ -39,9 +41,13 @@
     <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
   </div>
 
+  <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:15px 0 5px;text-align:left;">
+    <input type="checkbox" id="modoPrueba" style="width:auto;margin:0;"> 🧪 Es envío de prueba
+  </label>
+
   <button class="btn-main" onclick="enviarReporte('gcfi')">🚢 Enviar GCFI</button>
 
-  <button class="btn-main" style="background:#17a2b8" onclick="enviarReporte('tango')">🚢 Enviar TANGO</button>
+  <button class="btn-main btn-tango" onclick="enviarReporte('tango')">🚢 Enviar TANGO</button>
   
   <div id="status"></div>
 
@@ -119,6 +125,8 @@
     const token = document.getElementById('tokenInput').value.trim() || localStorage.getItem('gh_token');
     const statusDiv = document.getElementById('status');
     const etiqueta = (destino || 'fijos').toUpperCase();
+    const modo = document.getElementById('modoPrueba').checked ? 'prueba' : 'real';
+    const etiquetaModo = modo === 'prueba' ? ' [PRUEBA]' : '';
 
     if (!token) {
       statusDiv.style.color = 'red';
@@ -132,7 +140,7 @@
     document.getElementById('changeTokenBtn').style.display = 'inline-block';
 
     statusDiv.style.color = 'blue';
-    statusDiv.innerText = 'Enviando orden a GitHub Actions (' + etiqueta + ')...';
+    statusDiv.innerText = 'Enviando orden a GitHub Actions (' + etiqueta + etiquetaModo + ')...';
 
     const url = 'https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/workflows/gfs_maritimo.yml/dispatches';
 
@@ -143,12 +151,12 @@
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github+json'
         },
-        body: JSON.stringify({ ref: 'main', inputs: { destino: destino || 'fijos' } })
+        body: JSON.stringify({ ref: 'main', inputs: { destino: destino || 'fijos', modo: modo } })
       });
 
       if (response.status === 204) {
         statusDiv.style.color = 'green';
-        statusDiv.innerText = '¡Orden enviada con éxito para ' + etiqueta + '! Fijos + ' + etiqueta + ' recibirán el GRIB2.';
+        statusDiv.innerText = '¡Orden enviada con éxito para ' + etiqueta + etiquetaModo + '! Recibirán el GRIB2.';
         setTimeout(() => obtenerUltimoEstado(token), 8000);
       } else {
         statusDiv.style.color = 'red';
