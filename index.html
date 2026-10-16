@@ -39,7 +39,9 @@
     <input type="password" id="tokenInput" placeholder="Pegá tu GitHub Token aquí (solo la 1° vez)">
   </div>
 
-  <button class="btn-main" onclick="enviarReporte()">🚀 Enviar GRIB2 Manualmente</button>
+  <button class="btn-main" onclick="enviarReporte('gcfi')">🚢 Enviar GCFI</button>
+
+  <button class="btn-main" style="background:#17a2b8" onclick="enviarReporte('tango')">🚢 Enviar TANGO</button>
   
   <div id="status"></div>
 
@@ -112,10 +114,11 @@
     obtenerUltimoEstado(token);
   }
 
-  // Acción del botón "Enviar GRIB2 Manualmente"
-  async function enviarReporte() {
-    const token = document.getElementById('tokenInput').value.trim();
+  // Acción de los botones "Enviar GCFI / TANGO"
+  async function enviarReporte(destino) {
+    const token = document.getElementById('tokenInput').value.trim() || localStorage.getItem('gh_token');
     const statusDiv = document.getElementById('status');
+    const etiqueta = (destino || 'fijos').toUpperCase();
 
     if (!token) {
       statusDiv.style.color = 'red';
@@ -129,7 +132,7 @@
     document.getElementById('changeTokenBtn').style.display = 'inline-block';
 
     statusDiv.style.color = 'blue';
-    statusDiv.innerText = 'Enviando orden a GitHub Actions...';
+    statusDiv.innerText = 'Enviando orden a GitHub Actions (' + etiqueta + ')...';
 
     const url = 'https://api.github.com/repos/kstmpna-art/GFS-Automatico/actions/workflows/gfs_maritimo.yml/dispatches';
 
@@ -140,12 +143,12 @@
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github+json'
         },
-        body: JSON.stringify({ ref: 'main' })
+        body: JSON.stringify({ ref: 'main', inputs: { destino: destino || 'fijos' } })
       });
 
       if (response.status === 204) {
         statusDiv.style.color = 'green';
-        statusDiv.innerText = '¡Orden enviada con éxito! En unos segundos se actualizará el estado.';
+        statusDiv.innerText = '¡Orden enviada con éxito para ' + etiqueta + '! Fijos + ' + etiqueta + ' recibirán el GRIB2.';
         setTimeout(() => obtenerUltimoEstado(token), 8000);
       } else {
         statusDiv.style.color = 'red';
