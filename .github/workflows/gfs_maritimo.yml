@@ -1,9 +1,9 @@
 name: Enviar GRIB marítimo
 
 on:
-  #schedule:
+  schedule:
     # 06:45 UTC = 03:45 ART | 18:45 UTC = 15:45 ART
-   # - cron: "45 6,18 * * *"
+    - cron: "45 6,18 * * *"
   workflow_dispatch:
     inputs:
       destino:
@@ -15,6 +15,7 @@ on:
           - fijos
           - gcfi
           - tango
+          - gcth
       modo:
         description: "Tipo de envío"
         type: choice
@@ -97,6 +98,7 @@ jobs:
           MAIL_FIJOS: ${{ secrets.MAIL_DESTINO }}
           MAIL_GCFI: ${{ secrets.MAIL_GCFI }}
           MAIL_TANGO: ${{ secrets.MAIL_TANGO }}
+          MAIL_GCTH: ${{ secrets.MAIL_GCTH }}
           DESTINO: ${{ inputs.destino }}
           MODO: ${{ inputs.modo }}
         run: |
@@ -109,6 +111,10 @@ jobs:
           if [ "$DESTINO" = "tango" ]; then
             if [ -z "$MAIL_TANGO" ]; then echo "ERROR: falta el secret MAIL_TANGO"; exit 1; fi
             DESTINOS="$DESTINOS,$MAIL_TANGO"
+          fi
+          if [ "$DESTINO" = "gcth" ]; then
+            if [ -z "$MAIL_GCTH" ]; then echo "ERROR: falta el secret MAIL_GCTH"; exit 1; fi
+            DESTINOS="$DESTINOS,$MAIL_GCTH"
           fi
           # En cron MODO viene vacío -> real
           if [ -z "$MODO" ]; then MODO="real"; fi
